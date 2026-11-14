@@ -1,0 +1,68 @@
+{
+  "run_timestamp": "2026-11-14T20:27:35",
+  "cleaning": {
+    "input_path": "/Users/baotoan/Documents/AI_For_Business/data/raw/DATA_COLLECTION_TEXT_ANALYSIS_STUDY_IN_JAPAN.xlsx",
+    "output_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/cleaned_data.csv",
+    "total_raw_records": 240,
+    "kept_records": 210,
+    "dropped_records": 30,
+    "drop_reasons": {
+      "before_or_in_jan_2022": 25,
+      "spam_keyword:tuyển sinh": 3,
+      "spam_keyword:bao đỗ": 1,
+      "spam_promotional_links_or_contact": 1
+    }
+  },
+  "classification": {
+    "input_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/cleaned_data.csv",
+    "output_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/classified_data.csv",
+    "manual_review_output_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/manual_review_needed.csv",
+    "total_classified": 210,
+    "category_distribution": {
+      "Motivation": 14,
+      "Purpose": 16,
+      "Preparation": 103,
+      "Other": 77
+    },
+    "manual_review_count": 91,
+    "accuracy": null,
+    "evaluation_note": "Experimental rule-based classifier; accuracy is not reported because no ground-truth labeled evaluation set is available yet."
+  },
+  "tfidf": {
+    "input_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/classified_data.csv",
+    "output_path": "/Users/baotoan/Documents/AI_For_Business/results/tfidf_results.csv",
+    "groups_analyzed": [
+      "ALL",
+      "Motivation",
+      "Other",
+      "Preparation",
+      "Purpose"
+    ],
+    "total_keywords_exported": 75
+  },
+  "lda": {
+    "input_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/classified_data.csv",
+    "output_path": "/Users/baotoan/Documents/AI_For_Business/results/lda_topics.csv",
+    "doc_topics_output_path": "/Users/baotoan/Documents/AI_For_Business/results/lda_doc_topics.csv",
+    "n_documents": 210,
+    "vocab_size": 1795,
+    "n_topics": 3,
+    "perplexity": 935.5828,
+    "log_likelihood": -48202.8816,
+    "interpretability_note": "Corpus size (210 docs, 1795 terms) is suitable for exploratory topic inspection across 3 topics.",
+    "mapping_disclaimer": "LDA topics (Topic_0, Topic_1, ...) are unsupervised statistical clusters and are NOT automatically equated with Motivation, Purpose, or Preparation."
+  },
+  "orange_export": {
+    "input_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/classified_data.csv",
+    "output_path": "/Users/baotoan/Documents/AI_For_Business/data/exports/orange_data.csv",
+    "exported_rows": 210,
+    "columns": [
+      "text_id",
+      "text_cleaned",
+      "text_segmented",
+      "category",
+      "created_at",
+      "needs_manual_review"
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+HƯỚNG DẪN TẠO WORD CLOUD TRÊN ORANGE DATA MINING
+
+Các file trong gói:
+- orange_data.csv           : dữ liệu đã làm sạch + phân loại (mỗi dòng = 1 văn bản)
+- vietnamese_stopwords.txt  : danh sách từ dừng tiếng Việt
+
+Cột dữ liệu:
+- text_id             : mã văn bản
+- text_cleaned        : văn bản đã làm sạch (để đọc)
+- text_segmented      : văn bản đã tách từ (dùng cho Word Cloud)
+- category            : Motivation / Purpose / Preparation / Other
+- created_at          : ngày đăng
+- needs_manual_review : True = cần kiểm tra thủ công
+
+Các bước:
+0. Options > Add-ons > tích "Text" > khởi động lại Orange (chỉ làm 1 lần).
+1. Widget "Corpus": mở orange_data.csv; ở "Used text features" chỉ để lại text_segmented.
+2. Widget "Preprocess Text" (nối từ Corpus):
+   - Transformation: Lowercase
+   - Tokenization: Regexp (\w+)
+   - Filtering: Stopwords > chọn file vietnamese_stopwords.txt
+3. Widget "Word Cloud" (nối từ Preprocess Text) -> Word Cloud tổng thể.
+4. Word Cloud theo nhóm: chèn "Select Rows" giữa Corpus và Preprocess Text,
+   điều kiện: category is Motivation (hoặc Purpose / Preparation).
+
+   Corpus -> Preprocess Text -> Word Cloud
+      |
+      +-> Select Rows (category = Motivation) -> Preprocess Text -> Word Cloud
