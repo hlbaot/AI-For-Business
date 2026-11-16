@@ -16,6 +16,7 @@ from src.classification import classify_dataset
 from src.cleaning import clean_dataset
 from src.lda import run_lda_analysis
 from src.tfidf import run_tfidf_analysis
+from src.visualize import generate_all_figures
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_RAW_PATH = PROJECT_ROOT / "data" / "raw" / "raw_data.csv"
@@ -142,6 +143,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Only regenerate Orange export from existing classified_data.csv.",
     )
+    parser.add_argument(
+        "--plots-only",
+        action="store_true",
+        help="Only regenerate charts from existing results (TF-IDF, LDA, categories).",
+    )
     return parser.parse_args()
 
 
@@ -157,6 +163,12 @@ def main() -> int:
             logger.info("Running in --export-only mode (skipping Cleaning, TF-IDF, LDA).")
             _, orange_stats = export_for_orange(DEFAULT_CLASSIFIED_PATH, DEFAULT_ORANGE_PATH)
             logger.info("Done: %s", orange_stats["output_path"])
+            return 0
+
+        if args.plots_only:
+            logger.info("Running in --plots-only mode (rendering charts from existing results).")
+            fig_stats = generate_all_figures()
+            logger.info("Done: %d figures in %s", len(fig_stats["figures"]), fig_stats["figure_dir"])
             return 0
 
         input_path = resolve_input_path(args.input)
@@ -184,6 +196,9 @@ def main() -> int:
         logger.info("=== Step 5/5: Orange Data Mining Export ===")
         _, orange_stats = export_for_orange(DEFAULT_CLASSIFIED_PATH, DEFAULT_ORANGE_PATH)
 
+        logger.info("=== Step 6/6: Visualization (TF-IDF & LDA charts) ===")
+        figure_stats = generate_all_figures()
+
         metrics = {
             "run_timestamp": datetime.now().isoformat(timespec="seconds"),
             "cleaning": cleaning_stats,
@@ -191,6 +206,7 @@ def main() -> int:
             "tfidf": tfidf_stats,
             "lda": lda_stats,
             "orange_export": orange_stats,
+            "figures": figure_stats,
         }
         DEFAULT_METRICS_PATH.parent.mkdir(parents=True, exist_ok=True)
         DEFAULT_METRICS_PATH.write_text(

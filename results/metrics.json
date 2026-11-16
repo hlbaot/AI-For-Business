@@ -1,5 +1,5 @@
 {
-  "run_timestamp": "2026-11-15T20:22:42",
+  "run_timestamp": "2026-11-17T00:47:14",
   "cleaning": {
     "input_path": "/Users/baotoan/Documents/AI_For_Business/data/raw/DATA_COLLECTION_TEXT_ANALYSIS_STUDY_IN_JAPAN_P2.xlsx",
     "output_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/cleaned_data.csv",
@@ -38,22 +38,21 @@
     "groups_analyzed": [
       "ALL",
       "Motivation",
-      "Other",
       "Preparation",
       "Purpose"
     ],
-    "total_keywords_exported": 75
+    "total_keywords_exported": 60
   },
   "lda": {
     "input_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/classified_data.csv",
     "output_path": "/Users/baotoan/Documents/AI_For_Business/results/lda_topics.csv",
     "doc_topics_output_path": "/Users/baotoan/Documents/AI_For_Business/results/lda_doc_topics.csv",
-    "n_documents": 1447,
-    "vocab_size": 4545,
+    "n_documents": 670,
+    "vocab_size": 3130,
     "n_topics": 3,
-    "perplexity": 1416.5391,
-    "log_likelihood": -201113.7738,
-    "interpretability_note": "Corpus size (1447 docs, 4545 terms) is suitable for exploratory topic inspection across 3 topics.",
+    "perplexity": 1330.2182,
+    "log_likelihood": -111327.5822,
+    "interpretability_note": "Corpus size (670 docs, 3130 terms) is suitable for exploratory topic inspection across 3 topics.",
     "mapping_disclaimer": "LDA topics (Topic_0, Topic_1, ...) are unsupervised statistical clusters and are NOT automatically equated with Motivation, Purpose, or Preparation."
   },
   "orange_export": {
@@ -67,6 +66,19 @@
       "category",
       "created_at",
       "needs_manual_review"
+    ]
+  },
+  "figures": {
+    "figure_dir": "/Users/baotoan/Documents/AI_For_Business/results/figures",
+    "figures": [
+      "/Users/baotoan/Documents/AI_For_Business/results/figures/01_phan_bo_nhom_phan_loai.png",
+      "/Users/baotoan/Documents/AI_For_Business/results/figures/02_tfidf_tu_khoa_tong_the.png",
+      "/Users/baotoan/Documents/AI_For_Business/results/figures/03_tfidf_nhom_dong_luc_motivation.png",
+      "/Users/baotoan/Documents/AI_For_Business/results/figures/04_tfidf_nhom_muc_dich_purpose.png",
+      "/Users/baotoan/Documents/AI_For_Business/results/figures/05_tfidf_nhom_chuan_bi_preparation.png",
+      "/Users/baotoan/Documents/AI_For_Business/results/figures/06_lda_tu_khoa_tung_chu_de.png",
+      "/Users/baotoan/Documents/AI_For_Business/results/figures/07_lda_phan_bo_chu_de.png",
+      "/Users/baotoan/Documents/AI_For_Business/results/figures/08_lda_chu_de_vs_nhom_phan_loai.png"
     ]
   }
 }

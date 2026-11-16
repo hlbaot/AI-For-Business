@@ -95,6 +95,8 @@ VIETNAMESE_STOPWORDS: frozenset[str] = frozenset(
     }
 )
 
+TARGET_CATEGORIES: tuple[str, ...] = ("Motivation", "Purpose", "Preparation")
+
 PUNCT_ONLY_PATTERN = re.compile(r"^[_\W]+$", flags=re.UNICODE)
 
 
@@ -181,6 +183,12 @@ def run_tfidf_analysis(
     df = pd.read_csv(in_path, encoding="utf-8-sig")
     if df.empty or "text_segmented" not in df.columns:
         raise ValueError("Input DataFrame must be non-empty and contain 'text_segmented'.")
+
+    # Only the 3 target groups are analysed; "ALL" = Motivation + Purpose + Preparation combined.
+    if "category" in df.columns:
+        df = df[df["category"].isin(TARGET_CATEGORIES)].reset_index(drop=True)
+        if df.empty:
+            raise ValueError("No documents in Motivation/Purpose/Preparation for TF-IDF.")
 
     all_rows = _extract_top_terms(df["text_segmented"].fillna("").tolist(), "ALL", top_n)
 

@@ -11,7 +11,7 @@ import pandas as pd
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
 
-from src.tfidf import vietnamese_segmented_tokenizer
+from src.tfidf import TARGET_CATEGORIES, vietnamese_segmented_tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,10 @@ def run_lda_analysis(
     df = pd.read_csv(in_path, encoding="utf-8-sig")
     if df.empty or "text_segmented" not in df.columns:
         raise ValueError("Input DataFrame must be non-empty and contain 'text_segmented'.")
+
+    # Only the 3 target groups (exclude "Other") are modelled.
+    if "category" in df.columns:
+        df = df[df["category"].isin(TARGET_CATEGORIES)].reset_index(drop=True)
 
     valid_mask = df["text_segmented"].fillna("").str.strip() != ""
     df_valid = df.loc[valid_mask].copy().reset_index(drop=True)
