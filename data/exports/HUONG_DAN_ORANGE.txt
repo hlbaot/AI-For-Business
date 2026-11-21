@@ -1,28 +1,23 @@
 HƯỚNG DẪN TẠO WORD CLOUD TRÊN ORANGE DATA MINING
 
-Các file trong gói:
-- orange_data.csv           : dữ liệu đã làm sạch + phân loại (mỗi dòng = 1 văn bản)
-- vietnamese_stopwords.txt  : danh sách từ dừng tiếng Việt
+Các file trong gói
+- orange_data.csv chứa dữ liệu đã làm sạch và gán nhãn theo luật.
+- vietnamese_stopwords.txt là danh sách từ dừng dùng chung với pipeline Python.
 
-Cột dữ liệu:
-- text_id             : mã văn bản
-- text_cleaned        : văn bản đã làm sạch (để đọc)
-- text_segmented      : văn bản đã tách từ (dùng cho Word Cloud)
-- category            : Motivation / Purpose / Preparation / Other
-- created_at          : ngày đăng
-- needs_manual_review : True = cần kiểm tra thủ công
+Cột dữ liệu
+- text_id là mã văn bản.
+- text_cleaned dùng để đọc bình luận đã làm sạch.
+- text_segmented chứa văn bản đã tách từ.
+- text_model chứa từ khóa đã chuẩn hóa, bỏ từ dừng và số rời.
+  Dấu gạch dưới giữ các cụm như tiếng_nhật và xin_visa thành một từ.
+- category là nhóm Motivation / Purpose / Preparation / Other.
+- created_at là ngày đăng.
+- needs_manual_review đánh dấu văn bản cần kiểm tra thủ công.
 
-Các bước:
-0. Options > Add-ons > tích "Text" > khởi động lại Orange (chỉ làm 1 lần).
-1. Widget "Corpus": mở orange_data.csv; ở "Used text features" chỉ để lại text_segmented.
-2. Widget "Preprocess Text" (nối từ Corpus):
-   - Transformation: Lowercase
-   - Tokenization: Regexp (\w+)
-   - Filtering: Stopwords > chọn file vietnamese_stopwords.txt
-3. Widget "Word Cloud" (nối từ Preprocess Text) -> Word Cloud tổng thể.
-4. Word Cloud theo nhóm: chèn "Select Rows" giữa Corpus và Preprocess Text,
-   điều kiện: category is Motivation (hoặc Purpose / Preparation).
-
-   Corpus -> Preprocess Text -> Word Cloud
-      |
-      +-> Select Rows (category = Motivation) -> Preprocess Text -> Word Cloud
+Các bước
+1. Cài add-on Text nếu chưa có. Mở orange_data.csv trong widget Corpus.
+2. Trong Used text features, chỉ chọn text_model.
+3. Để dùng cùng phạm vi với TF-IDF tổng thể, lọc category thuộc Motivation,
+   Purpose hoặc Preparation bằng Select Rows. Để xem từng nhóm, chọn một nhóm.
+4. Nối Preprocess Text, chọn Tokenization → Regexp (\w+).
+5. Nối Word Cloud. Cột text_model đã được lọc từ dừng khi xuất.

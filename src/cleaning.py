@@ -11,38 +11,38 @@ from typing import Any
 import pandas as pd
 from underthesea import word_tokenize
 
+from src.text_features import EMOJI_SHORTCODE, vietnamese_segmented_tokenizer
+
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_RAW_PATH = PROJECT_ROOT / "data" / "raw" / "raw_data.csv"
 DEFAULT_CLEANED_PATH = PROJECT_ROOT / "data" / "processed" / "cleaned_data.csv"
+PROJECT_WORKBOOK = DEFAULT_RAW_PATH.with_name("DATA_COLLECTION_TEXT_ANALYSIS_STUDY_IN_JAPAN_P2.xlsx")
+PROJECT_REVIEW_PATH = PROJECT_ROOT / "data" / "reviewed_exclusions.csv"
 
 MIN_DATE_CUTOFF = pd.Timestamp("2022-01-31 23:59:59")
 REQUIRED_COLUMNS = ("text", "created_at")
 
 # Explainable spam / advertisement / irrelevant content rules
 SPAM_KEYWORDS: tuple[str, ...] = (
-    "tuyển sinh",
     "liên hệ ngay",
     "inbox ngay",
     "ib ngay",
     "tư vấn miễn phí",
     "cam kết đậu",
-    "bao đỗ",
-    "xuất khẩu lao động",
-    "xklđ",
-    "xkld",
-    "vay vốn",
-    "vay tiền",
-    "lãi suất",
     "bán sim",
     "chốt đơn",
     "giảm giá sốc",
     "link bio",
     "đăng ký ngay hôm nay",
-    "hotline",
-    "zalo:",
 )
+LABOR_ROUTE_PATTERN = re.compile(r"\b(?:xuất khẩu lao động|xklđ|xkld)\b")
+STUDY_CONTEXT_PATTERN = re.compile(
+    r"\b(?:du học|du hk|trường|đại học|đh|cao đẳng|tiếng nhật|học phí|học bổng|"
+    r"jlpt|n[1-5]|học lên|đi học)\b"
+)
+TEMPLATE_INTRO_PATTERN = re.compile(r"^(?:dưới đây là|đây là) (?:nội dung |một )?bình luận khoảng \d+")
 
 IRRELEVANT_EXACT: frozenset[str] = frozenset(
     {
@@ -178,6 +178,8 @@ def detect_spam_or_irrelevant(text: str) -> tuple[bool, str | None]:
     lowered = unicodedata.normalize("NFC", text).lower().strip()
     if lowered in IRRELEVANT_EXACT:
         return True, "irrelevant_short_placeholder"
+    if TEMPLATE_INTRO_PATTERN.match(lowered):
+        return True, "comment_template_intro"
 
     # Strip emojis and URLs when checking meaningful length
     no_emoji = EMOJI_PATTERN.sub(" ", lowered)
@@ -188,12 +190,16 @@ def detect_spam_or_irrelevant(text: str) -> tuple[bool, str | None]:
         return True, "irrelevant_too_short"
 
     for kw in SPAM_KEYWORDS:
-        if kw in lowered:
+        if re.search(rf"\b{re.escape(kw)}\b", lowered):
             return True, f"spam_keyword:{kw}"
+
+    if LABOR_ROUTE_PATTERN.search(lowered) and not STUDY_CONTEXT_PATTERN.search(lowered):
+        return True, "off_topic_labor_route"
 
     url_count = len(URL_PATTERN.findall(lowered))
     has_phone = bool(PHONE_PATTERN.search(lowered))
-    if url_count >= 2 or (url_count >= 1 and has_phone):
+    recruitment = bool(re.search(r"\b(?:tuyển dụng|chốt đơn|đăng ký ngay)\b", lowered))
+    if url_count and (has_phone or recruitment):
         return True, "spam_promotional_links_or_contact"
 
     return False, None
@@ -213,6 +219,7 @@ def normalize_vietnamese_text(text: str) -> str:
     """Normalize Unicode, remove emojis, and clean spacing while preserving diacritics and numbers."""
     normalized = unicodedata.normalize("NFC", text)
     normalized = EMOJI_PATTERN.sub(" ", normalized)
+    normalized = EMOJI_SHORTCODE.sub(" ", normalized)
     normalized = ALLOWED_CHAR_PATTERN.sub(" ", normalized)
     normalized = WHITESPACE_PATTERN.sub(" ", normalized).strip()
     return normalized
@@ -293,6 +300,12 @@ def clean_dataset(
     df["created_at"] = parsed_dates.loc[valid_date_mask].dt.strftime("%Y-%m-%d")
 
     # 4. Filter spam, ads, and irrelevant content
+    if in_path.resolve() == PROJECT_WORKBOOK.resolve() and PROJECT_REVIEW_PATH.is_file():
+        reviewed_ids = pd.read_csv(PROJECT_REVIEW_PATH, dtype={"text_id": str})["text_id"]
+        reviewed_exclusions = df["text_id"].isin(reviewed_ids)
+        record_drop("manual_review_exclusion", int(reviewed_exclusions.sum()))
+        df = df.loc[~reviewed_exclusions].copy()
+
     spam_flags = df["text"].apply(detect_spam_or_irrelevant)
     is_spam = spam_flags.apply(lambda x: x[0])
     for reason in spam_flags.loc[is_spam].apply(lambda x: x[1]):
@@ -300,7 +313,11 @@ def clean_dataset(
     df = df.loc[~is_spam].copy()
 
     # 5. Anonymize PII, normalize Vietnamese, and word-segment
-    df["text_cleaned"] = df["text"].apply(anonymize_pii).apply(normalize_vietnamese_text)
+    text_for_analysis = df["text"]
+    if "text_anonymized" in df.columns:
+        anonymized = df["text_anonymized"].fillna("").astype(str).str.strip()
+        text_for_analysis = anonymized.where(anonymized.ne(""), text_for_analysis)
+    df["text_cleaned"] = text_for_analysis.apply(anonymize_pii).apply(normalize_vietnamese_text)
     df["text_segmented"] = df["text_cleaned"].apply(segment_vietnamese_text)
 
     # Drop any rows that became empty after cleaning/segmentation
@@ -309,6 +326,13 @@ def clean_dataset(
     )
     record_drop("empty_after_cleaning", int(post_empty_mask.sum()))
     df = df.loc[~post_empty_mask].copy()
+
+    has_content = df["text_segmented"].map(
+        lambda text: bool(vietnamese_segmented_tokenizer(text))
+    ).astype(bool)
+    noise_only = ~has_content
+    record_drop("no_content_terms", int(noise_only.sum()))
+    df = df.loc[~noise_only].copy()
 
     # Drop potential PII metadata columns like author/username/email if present
     pii_cols = [c for c in ("author", "username", "user", "email", "phone") if c in df.columns]

@@ -11,7 +11,8 @@ import pandas as pd
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction.text import CountVectorizer
 
-from src.tfidf import TARGET_CATEGORIES, vietnamese_segmented_tokenizer
+from src.text_features import vietnamese_segmented_tokenizer
+from src.tfidf import TARGET_CATEGORIES
 
 logger = logging.getLogger(__name__)
 
@@ -62,47 +63,28 @@ def run_lda_analysis(
     if "category" in df.columns:
         df = df[df["category"].isin(TARGET_CATEGORIES)].reset_index(drop=True)
 
-    valid_mask = df["text_segmented"].fillna("").str.strip() != ""
-    df_valid = df.loc[valid_mask].copy().reset_index(drop=True)
-    texts = df_valid["text_segmented"].tolist()
-
+    model_texts = df["text_segmented"].map(lambda text: " ".join(vietnamese_segmented_tokenizer(text)))
+    has_tokens = model_texts.ne("")
+    texts = model_texts.loc[has_tokens]
     if len(texts) < 2:
-        raise ValueError(f"Need at least 2 non-empty documents for LDA, got {len(texts)}.")
+        raise ValueError(f"Need at least 2 documents with usable terms for LDA, got {len(texts)}.")
 
-    effective_topics = min(max(1, n_topics), len(texts))
+    # In the project corpus, single-document terms are often typos, names or isolated noise.
+    min_df = 2 if len(texts) >= 30 else 1
+    vectorizer = CountVectorizer(analyzer=str.split, min_df=min_df)
+    dtm = vectorizer.fit_transform(texts)
+    has_features = dtm.getnnz(axis=1) > 0
+    df_valid = df.loc[texts.index[has_features]].reset_index(drop=True)
+    dtm = dtm[has_features]
+    if len(df_valid) < 2:
+        raise ValueError("Need at least 2 documents with retained vocabulary for LDA.")
+
+    effective_topics = min(max(1, n_topics), len(df_valid))
     if effective_topics != n_topics:
-        logger.warning(
-            "Requested n_topics=%d exceeds document count=%d; adjusted to %d.",
-            n_topics,
-            len(texts),
-            effective_topics,
-        )
-
-    max_df = 0.95 if len(texts) >= 5 else 1.0
-    vectorizer = CountVectorizer(
-        tokenizer=vietnamese_segmented_tokenizer,
-        token_pattern=None,
-        lowercase=False,
-        min_df=1,
-        max_df=max_df,
-    )
-
-    try:
-        dtm = vectorizer.fit_transform(texts)
-    except ValueError:
-        vectorizer = CountVectorizer(
-            tokenizer=vietnamese_segmented_tokenizer,
-            token_pattern=None,
-            lowercase=False,
-            min_df=1,
-            max_df=1.0,
-        )
-        dtm = vectorizer.fit_transform(texts)
-
+        logger.warning("Adjusted n_topics=%d to %d for %d modelled documents.",
+                       n_topics, effective_topics, len(df_valid))
     feature_names = vectorizer.get_feature_names_out()
     vocab_size = len(feature_names)
-    if vocab_size == 0:
-        raise ValueError("Vocabulary is empty after tokenization; cannot fit LDA.")
 
     lda = LatentDirichletAllocation(
         n_components=effective_topics,
@@ -112,7 +94,7 @@ def run_lda_analysis(
     )
     doc_topic_matrix = lda.fit_transform(dtm)
 
-    interpretability_note = _assess_interpretability(len(texts), effective_topics, vocab_size)
+    interpretability_note = _assess_interpretability(len(df_valid), effective_topics, vocab_size)
 
     topic_rows: list[dict[str, Any]] = []
     for topic_idx, topic_weights in enumerate(lda.components_):
@@ -158,7 +140,11 @@ def run_lda_analysis(
         "input_path": str(in_path),
         "output_path": str(out_path),
         "doc_topics_output_path": str(doc_topics_path) if doc_topics_path else None,
-        "n_documents": len(texts),
+        "n_documents": len(df_valid),
+        "n_candidate_documents": len(df),
+        "excluded_no_tokens": int((~has_tokens).sum()),
+        "excluded_no_retained_terms": int((~has_features).sum()),
+        "min_document_frequency": min_df,
         "vocab_size": vocab_size,
         "n_topics": effective_topics,
         "perplexity": round(perplexity, 4),

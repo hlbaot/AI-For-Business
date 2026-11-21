@@ -15,6 +15,7 @@ import pandas as pd
 from src.classification import classify_dataset
 from src.cleaning import clean_dataset
 from src.lda import run_lda_analysis
+from src.text_features import vietnamese_segmented_tokenizer
 from src.tfidf import run_tfidf_analysis
 from src.visualize import generate_all_figures
 
@@ -74,6 +75,9 @@ def export_for_orange(
 
     optional = [c for c in ("created_at", "needs_manual_review") if c in df.columns]
     orange_df = df[required + optional].copy()
+    orange_df["text_model"] = df["text_segmented"].map(
+        lambda text: " ".join(vietnamese_segmented_tokenizer(text))
+    )
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     orange_df.to_csv(out_path, index=False, encoding="utf-8-sig")

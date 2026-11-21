@@ -16,6 +16,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
+from matplotlib.ticker import FuncFormatter, PercentFormatter  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +37,9 @@ CATEGORY_COLORS = {
     "Other": "#8C8C8C",
 }
 TFIDF_FILE_NAMES = {
-    "Motivation": "03_tfidf_nhom_dong_luc_motivation.png",
-    "Purpose": "04_tfidf_nhom_muc_dich_purpose.png",
-    "Preparation": "05_tfidf_nhom_chuan_bi_preparation.png",
+    "Motivation": "hinh_03_tfidf_nhom_dong_luc_motivation.png",
+    "Purpose": "hinh_04_tfidf_nhom_muc_dich_purpose.png",
+    "Preparation": "hinh_05_tfidf_nhom_chuan_bi_preparation.png",
 }
 TOPIC_COLORS = ["#4C72B0", "#DD8452", "#55A868", "#C44E52", "#8172B3", "#937860", "#DA8BC3", "#8C8C8C"]
 
@@ -58,6 +59,10 @@ def _label(word: str) -> str:
     return str(word).replace("_", " ")
 
 
+def _percent(share: float) -> str:
+    return f"{share:.1%}".replace(".", ",")
+
+
 def _save(fig: plt.Figure, path: Path) -> str:
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.tight_layout()
@@ -75,8 +80,9 @@ def _hbar(ax: plt.Axes, words: list[str], values: list[float], color: str, title
     ax.invert_yaxis()
     ax.set_title(title, fontweight="bold")
     ax.set_xlabel(xlabel)
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}".replace(".", ",")))
     for yi, v in zip(y, values):
-        ax.text(v, yi, f" {v:.3f}", va="center", fontsize=8)
+        ax.text(v, yi, " " + f"{v:.4f}".replace(".", ","), va="center", fontsize=9)
     ax.margins(x=0.15)
 
 
@@ -94,10 +100,10 @@ def plot_tfidf(tfidf_path: Path, fig_dir: Path) -> list[str]:
             all_df["keyword"].tolist(),
             all_df["tfidf_score"].tolist(),
             CATEGORY_COLORS["ALL"],
-            f"Top {len(all_df)} TF-IDF keywords – All 3 groups combined (n={int(all_df['group_doc_count'].iloc[0])})",
-            "Mean TF-IDF score",
+            f"Hình 2. Từ khóa TF-IDF của ba nhóm (n={int(all_df['group_doc_count'].iloc[0])})",
+            "Điểm TF-IDF trung bình",
         )
-        saved.append(_save(fig, fig_dir / "02_tfidf_tu_khoa_tong_the.png"))
+        saved.append(_save(fig, fig_dir / "hinh_02_tfidf_tu_khoa_tong_the.png"))
 
     # 2. One image per main category
     cats = [c for c in CATEGORY_ORDER if c in df["group"].unique()]
@@ -105,15 +111,17 @@ def plot_tfidf(tfidf_path: Path, fig_dir: Path) -> list[str]:
         for cat in [c for c in cats if c in TFIDF_FILE_NAMES]:
             sub = df[df["group"] == cat].sort_values("rank")
             fig, ax = plt.subplots(figsize=(9, 6))
+            file_name = TFIDF_FILE_NAMES[cat]
+            figure_number = int(file_name.split("_")[1])
             _hbar(
                 ax,
                 sub["keyword"].tolist(),
                 sub["tfidf_score"].tolist(),
                 CATEGORY_COLORS.get(cat, "#4C72B0"),
-                f"Top TF-IDF keywords – {cat} (n={int(sub['group_doc_count'].iloc[0])})",
-                "Mean TF-IDF score",
+                f"Hình {figure_number}. Từ khóa TF-IDF nhóm {cat} (n={int(sub['group_doc_count'].iloc[0])})",
+                "Điểm TF-IDF trung bình",
             )
-            saved.append(_save(fig, fig_dir / f"{TFIDF_FILE_NAMES[cat]}"))
+            saved.append(_save(fig, fig_dir / file_name))
     return saved
 
 
@@ -125,8 +133,13 @@ def plot_lda(topics_path: Path, doc_topics_path: Path, fig_dir: Path) -> list[st
 
     # 1. Top words per topic
     n = len(topic_ids)
-    fig, axes = plt.subplots(1, n, figsize=(5.5 * n, 6))
-    axes = np.atleast_1d(axes)
+    columns = 1 if n <= 3 else 2
+    rows = (n + columns - 1) // columns
+    fig, axes_grid = plt.subplots(rows, columns, figsize=(8.5 * columns, 3.7 * rows), squeeze=False)
+    axes = axes_grid.ravel()
+    for ax in axes[n:]:
+        ax.set_axis_off()
+    max_weight = topics["weight"].max()
     for ax, tid in zip(axes, topic_ids):
         sub = topics[topics["topic_id"] == tid].sort_values("rank")
         _hbar(
@@ -135,10 +148,11 @@ def plot_lda(topics_path: Path, doc_topics_path: Path, fig_dir: Path) -> list[st
             sub["weight"].tolist(),
             TOPIC_COLORS[tid % len(TOPIC_COLORS)],
             f"Topic_{tid}",
-            "Word probability within topic",
+            "Xác suất của từ trong chủ đề",
         )
-    fig.suptitle("LDA – Top keywords per topic", fontsize=15, fontweight="bold")
-    saved.append(_save(fig, fig_dir / "06_lda_tu_khoa_tung_chu_de.png"))
+        ax.set_xlim(0, max_weight * 1.18)
+    fig.suptitle("Hình 6. Từ khóa có trọng số cao theo chủ đề LDA", fontsize=15, fontweight="bold")
+    saved.append(_save(fig, fig_dir / "hinh_06_lda_tu_khoa_tung_chu_de.png"))
 
     if not doc_topics_path.exists():
         return saved
@@ -151,33 +165,38 @@ def plot_lda(topics_path: Path, doc_topics_path: Path, fig_dir: Path) -> list[st
     bars = ax.bar(counts.index, counts.values, color=[TOPIC_COLORS[i % len(TOPIC_COLORS)] for i in topic_ids])
     total = counts.sum()
     for b, v in zip(bars, counts.values):
-        ax.text(b.get_x() + b.get_width() / 2, v, f"{v}\n({v / total:.1%})", ha="center", va="bottom")
-    ax.set_title(f"Documents per dominant LDA topic (n={total})", fontweight="bold")
-    ax.set_ylabel("Number of documents")
+        share = v / total if total else 0
+        ax.text(b.get_x() + b.get_width() / 2, v, f"{v}\n({_percent(share)})", ha="center", va="bottom")
+    ax.set_title(f"Hình 7. Phân bố chủ đề LDA chính (n={total})", fontweight="bold")
+    ax.set_ylabel("Số văn bản")
     ax.margins(y=0.18)
-    saved.append(_save(fig, fig_dir / "07_lda_phan_bo_chu_de.png"))
+    saved.append(_save(fig, fig_dir / "hinh_07_lda_phan_bo_chu_de.png"))
 
     # 3. Heatmap: LDA topic vs rule-based category
     if "rule_category" in docs.columns:
         ct = pd.crosstab(docs["rule_category"], docs["dominant_topic"])
         ct = ct.reindex(index=[c for c in CATEGORY_ORDER if c in ct.index], columns=topic_labels, fill_value=0)
-        pct = ct.div(ct.sum(axis=1).replace(0, 1), axis=0)
+        group_sizes = ct.sum(axis=1)
+        pct = ct.div(group_sizes.replace(0, 1), axis=0)
         fig, ax = plt.subplots(figsize=(1.8 * n + 3, 4.5))
         im = ax.imshow(pct.values, cmap="Blues", vmin=0, vmax=1, aspect="auto")
         ax.set_xticks(range(len(pct.columns)))
         ax.set_xticklabels(pct.columns)
         ax.set_yticks(range(len(pct.index)))
-        ax.set_yticklabels(pct.index)
+        ax.set_yticklabels([f"{group} (n={size})" for group, size in group_sizes.items()])
         for i in range(pct.shape[0]):
             for j in range(pct.shape[1]):
                 val = pct.values[i, j]
-                ax.text(j, i, f"{val:.0%}\n({ct.values[i, j]})", ha="center", va="center",
-                        color="white" if val > 0.55 else "black", fontsize=9)
-        ax.set_title("LDA topic distribution by category (row %)", fontweight="bold")
-        ax.set_xlabel("Dominant LDA topic")
-        ax.set_ylabel("Category (rule-based)")
-        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        saved.append(_save(fig, fig_dir / "08_lda_chu_de_vs_nhom_phan_loai.png"))
+                ax.text(j, i, f"{_percent(val)}\n({ct.values[i, j]})", ha="center", va="center",
+                        color="white" if val > 0.62 else "black", fontsize=11)
+        ax.set_title("Hình 8. Phân bố chủ đề LDA trong từng nhóm", fontweight="bold")
+        ax.set_xlabel("Chủ đề LDA chính")
+        ax.set_ylabel("Nhóm phân loại theo luật")
+        fig.colorbar(
+            im, ax=ax, fraction=0.046, pad=0.04,
+            format=PercentFormatter(xmax=1), label="Tỷ lệ trong nhóm",
+        )
+        saved.append(_save(fig, fig_dir / "hinh_08_lda_chu_de_vs_nhom_phan_loai.png"))
 
     return saved
 
@@ -195,14 +214,14 @@ def plot_category_distribution(classified_path: Path, fig_dir: Path) -> list[str
     bars = ax1.bar(counts.index, counts.values, color=colors)
     for b, v in zip(bars, counts.values):
         ax1.text(b.get_x() + b.get_width() / 2, v, str(v), ha="center", va="bottom")
-    ax1.set_title("Documents per category", fontweight="bold")
-    ax1.set_ylabel("Number of documents")
+    ax1.set_title("Số văn bản theo nhóm", fontweight="bold")
+    ax1.set_ylabel("Số văn bản")
     ax1.margins(y=0.12)
-    ax2.pie(counts.values, labels=counts.index, colors=colors, autopct="%1.1f%%", startangle=90,
+    ax2.pie(counts.values, labels=counts.index, colors=colors, autopct=lambda value: _percent(value / 100), startangle=90,
             wedgeprops={"edgecolor": "white"})
-    ax2.set_title("Category share", fontweight="bold")
-    fig.suptitle(f"Rule-based category distribution (n={counts.sum()})", fontsize=14, fontweight="bold")
-    return [_save(fig, fig_dir / "01_phan_bo_nhom_phan_loai.png")]
+    ax2.set_title("Tỷ lệ theo nhóm", fontweight="bold")
+    fig.suptitle(f"Hình 1. Phân bố nhóm phân loại theo luật (n={counts.sum()})", fontsize=14, fontweight="bold")
+    return [_save(fig, fig_dir / "hinh_01_phan_bo_nhom_phan_loai.png")]
 
 
 def generate_all_figures(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
@@ -161,11 +162,15 @@ class RuleBasedClassifier(BaseTextClassifier):
 
     def __init__(self, rules: dict[str, dict[str, int]] | None = None) -> None:
         self.rules = rules or CATEGORY_RULES
+        self.patterns = {
+            keyword: re.compile(rf"\b{re.escape(keyword)}\b")
+            for weights in self.rules.values()
+            for keyword in weights
+        }
 
     def _score_text(self, text_cleaned: str, text_segmented: str) -> tuple[dict[str, int], dict[str, list[str]]]:
         haystack_clean = text_cleaned.lower()
         haystack_seg = text_segmented.lower().replace("_", " ")
-        haystack = f"{haystack_clean} {haystack_seg}"
 
         scores: dict[str, int] = {}
         matched: dict[str, list[str]] = {}
@@ -174,7 +179,8 @@ class RuleBasedClassifier(BaseTextClassifier):
             cat_score = 0
             cat_matches: list[str] = []
             for kw, weight in kw_weights.items():
-                if kw in haystack:
+                pattern = self.patterns[kw]
+                if pattern.search(haystack_clean) or pattern.search(haystack_seg):
                     cat_score += weight
                     cat_matches.append(kw)
             scores[category] = cat_score
