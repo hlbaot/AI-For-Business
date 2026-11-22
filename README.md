@@ -92,13 +92,40 @@ LDA dùng tần suất từ trên 654 văn bản với 964 từ hoặc cụm t�
 
 ![Hình 6. Từ khóa có trọng số cao theo chủ đề LDA](results/figures/hinh_06_lda_tu_khoa_tung_chu_de.png)
 
-*Hình 6.* Ba chủ đề cùng dùng một thang trọng số. Có thể đối chiếu các bình luận đại diện dưới đây bằng cột `text_id`. Nội dung ví dụ được tóm tắt từ bình luận. [Văn bản đã làm sạch](data/processed/cleaned_data.csv)
+*Hình 6.* Cả ba biểu đồ dùng cùng thang trọng số. Mỗi bảng dưới đây chọn bốn bình luận có xác suất cao và bao quát các nội dung khác nhau trong cùng topic. Các đoạn trích lấy từ cột `text_cleaned`. Dấu `[…]` đánh dấu phần lược bớt. Cột cuối liệt kê một số từ khóa vừa có trong Hình 6 vừa có trong bình luận đầy đủ sau tiền xử lý. [Bình luận đã làm sạch](data/processed/cleaned_data.csv) · [Xác suất theo mã bình luận](results/lda_doc_topics.csv)
 
-| Chủ đề | Nội dung | Bình luận đại diện |
-| --- | --- | --- |
-| **Topic_0 · Visa, hồ sơ và chuyển việc** | Các trao đổi về nộp hoặc gia hạn hồ sơ, xác nhận từ công ty và thủ tục khi đổi việc. Từ nổi bật gồm “công ty”, “visa”, “hồ sơ”, “nộp” và “giấy tờ”. | `P4_0014` (99,4%) bàn về giấy nghỉ việc và giấy tờ từ công ty mới. `P4_0019` (98,4%) hỏi cách xử lý khi hồ sơ gia hạn nộp trực tuyến chưa có kết quả. |
-| **Topic_1 · Chọn trường, ngành và lý do du học** | Người viết cân nhắc trường, ngành, cơ hội sau tốt nghiệp và điều kiện theo học tại Nhật. Từ nổi bật gồm “trường”, “ngành”, “học bổng”, “du học” và “động lực”. | `P1_0025` (97,6%) hỏi nên chọn trường công hay tư vì khác nhau về cơ hội trúng tuyển và học phí. `P4_0105` (99,2%) cân nhắc môi trường quốc tế của APU và triển vọng tìm việc sau tốt nghiệp. |
-| **Topic_2 · Học tiếng Nhật và chi phí theo học** | Chủ đề gom các trao đổi về khả năng theo học, gồm tự học tiếng Nhật, chi phí sinh hoạt, nguồn hỗ trợ và làm thêm. Từ nổi bật gồm “tiếng Nhật”, “chi phí”, “tiền”, “đại học” và “làm thêm”. | `P2_0764` (97,9%) bàn về chênh lệch giữa chứng chỉ JLPT và khả năng giao tiếp. `P1_0005` (98,8%) tính tiền nhà, sinh hoạt và khả năng trang trải học phí bằng thu nhập làm thêm. `P2_0467` (97,1%) nối hai mảng khi cân nhắc học trường tiếng để luyện EJU và dùng học bổng báo để theo học. |
+#### Topic_0 · Visa, hồ sơ và chuyển việc
+
+| Mã bình luận | Xác suất LDA | Trích đoạn bình luận | Từ khóa khớp với Hình 6 |
+| --- | ---: | --- | --- |
+| `P4_0014` | 99,4% | “khi nghỉ việc công ty cũ và chuyển việc vào công ty mới cần giấy tờ xác minh đã chấm dứt hợp đồng với công ty cũ chưa” | công ty, chuyển, giấy tờ |
+| `P4_0018` | 99,0% | “Kể cả công ty có hỗ trợ gia hạn đi chăng nữa thì giấy tờ bản thân e cũng phải tự chuẩn bị vì 1 bộ hồ sơ gia hạn cần có giấy tờ từ hai phía ( người lao động và công ty )” | công ty, giấy tờ, hồ sơ |
+| `P4_0019` | 98,4% | “khi em nộp hồ sơ gia hạn visa online thành công. Tuy nhiên đến nay đã hơn một tháng trôi qua rồi, mà em vẫn chưa nhận được thông báo” | nộp, hồ sơ, visa |
+| `P4_0025` | 97,7% | “Lý do coe ko phải từ phía người lao động nộp là được còn cần rất nhiều giấy tờ từ phía công ty tiếp nhận cung cấp” | nộp, giấy tờ, công ty |
+
+**Căn cứ đặt tên.** “Công ty”, “visa” và “hồ sơ” nằm trong ba từ đứng đầu. Các bình luận cho thấy chúng gắn với những bước cụ thể như xác nhận khi chuyển việc, chuẩn bị giấy tờ từ hai phía, nộp hồ sơ gia hạn và xin COE. Vì vậy, tên **Visa, hồ sơ và chuyển việc** bao quát cả thủ tục lưu trú lẫn vai trò của doanh nghiệp.
+
+#### Topic_1 · Chọn trường, ngành và lý do du học
+
+| Mã bình luận | Xác suất LDA | Trích đoạn bình luận | Từ khóa khớp với Hình 6 |
+| --- | ---: | --- | --- |
+| `P4_0105` | 99,2% | “Nếu như bạn muốn học ở 1 môi trường quốc tế thì có thể cân nhắc. Nhưng nếu bạn muốn ở lại định cư hay làm việc ở các doanh nghiệp nhật thì tốt nhất nên cân nhắc trường khác.” | học, trường, Nhật |
+| `P1_0025` | 97,6% | “cháu đang muốn đăng kí học ở trường quốc lập hoặc công lập mà cháu không tự tin sợ 2 trường đó tuyển sinh người nước ngoài ít khó vào, mà trường tư học phí đắt quá” | học, trường |
+| `P4_0083` | 97,0% | “Xem nhưng chia sẻ của chị mà em thấy có động lực quá, dạ chị ơi không biết rằng có loại học bổng nào chỉ dành cho du học trường tiếng không ạ ?” | động lực, học bổng, du học, trường |
+| `P1_0075` | 96,2% | “Em đang có dự định học ĐH ngành Kinh tế quốc tế xong sẽ sang Nhật làm, chị có thể cho em lời khuyên không ạ?” | học, ngành, Nhật |
+
+**Căn cứ đặt tên.** “Trường” có trọng số cao nhất, đi cùng “ngành”, “học bổng”, “du học” và “động lực”. Người viết dùng các từ này khi cân nhắc khả năng trúng tuyển, môi trường học, hỗ trợ tài chính và triển vọng nghề nghiệp. Tên **Chọn trường, ngành và lý do du học** phản ánh các lựa chọn và lý do đằng sau những lựa chọn đó.
+
+#### Topic_2 · Học tiếng Nhật và chi phí theo học
+
+| Mã bình luận | Xác suất LDA | Trích đoạn bình luận | Từ khóa khớp với Hình 6 |
+| --- | ---: | --- | --- |
+| `P2_0764` | 97,9% | “JLPT N3 không đồng nghĩa với việc có thể nghe hiểu, đọc hiểu, viết được, nói được nếu không thường xuyên tự học, trau dồi, rèn luyện thêm. […] nghe Vlog podcast tiếng Nhật” | học, tiếng Nhật |
+| `P2_0069` | 98,0% | “Các bạn kiếm được học bổng cỡ 5-70% hoặc đc nhà trường hỗ trợ về chỗ ở, sinh hoạt thì hẵng đi du học. Như vậy vừa có hiệu quả về mặt kiến thức và chi phí.” | chi phí, tiền |
+| `P2_0467` | 97,1% | “E muốn dh trường tiếng trước khi thi lên đh ạ,e mún học trg tiếg luyện thi eju luôn,anh cho e hỏi e có nên học xog c3 rồi xin hb báo sang trg tiếng học ôn thi eju,để vào đh ko ạ” | học, tiếng, đại học |
+| `P4_0075` | 96,0% | “chi phí sang tầm bao nhiêu ạ với lại là sang bên đó mình đi làm thêm thì có đủ tiền nhà, sinh hoạt phí và học phí không?” | chi phí, làm thêm, tiền |
+
+**Căn cứ đặt tên.** “Học” và “tiếng Nhật” dẫn đầu, trong khi “chi phí”, “tiền” và “làm thêm” làm rõ phần tài chính của cụm. Hai mảng gặp nhau trong bình luận về học trường tiếng để luyện EJU và tìm học bổng báo để vào đại học. Tên **Học tiếng Nhật và chi phí theo học** phản ánh cả việc chuẩn bị ngoại ngữ lẫn khả năng trang trải trong quá trình học.
 
 ![Hình 7. Phân bố chủ đề LDA chính](results/figures/hinh_07_lda_phan_bo_chu_de.png)
 
