@@ -11,7 +11,7 @@ from typing import Any
 import pandas as pd
 from underthesea import word_tokenize
 
-from src.text_features import EMOJI_SHORTCODE, vietnamese_segmented_tokenizer
+from src.text_features import EMOJI_SHORTCODE, normalize_term_forms, vietnamese_segmented_tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ DEFAULT_CLEANED_PATH = PROJECT_ROOT / "data" / "processed" / "cleaned_data.csv"
 PROJECT_WORKBOOK = DEFAULT_RAW_PATH.with_name("DATA_COLLECTION_TEXT_ANALYSIS_STUDY_IN_JAPAN_P2.xlsx")
 PROJECT_REVIEW_PATH = PROJECT_ROOT / "data" / "reviewed_exclusions.csv"
 
-MIN_DATE_CUTOFF = pd.Timestamp("2022-01-31 23:59:59")
+MIN_VALID_DATE = pd.Timestamp("2022-02-01")
 REQUIRED_COLUMNS = ("text", "created_at")
 
 # Explainable spam / advertisement / irrelevant content rules
@@ -36,11 +36,6 @@ SPAM_KEYWORDS: tuple[str, ...] = (
     "giảm giá sốc",
     "link bio",
     "đăng ký ngay hôm nay",
-)
-LABOR_ROUTE_PATTERN = re.compile(r"\b(?:xuất khẩu lao động|xklđ|xkld)\b")
-STUDY_CONTEXT_PATTERN = re.compile(
-    r"\b(?:du học|du hk|trường|đại học|đh|cao đẳng|tiếng nhật|học phí|học bổng|"
-    r"jlpt|n[1-5]|học lên|đi học)\b"
 )
 TEMPLATE_INTRO_PATTERN = re.compile(r"^(?:dưới đây là|đây là) (?:nội dung |một )?bình luận khoảng \d+")
 
@@ -73,7 +68,12 @@ EMOJI_PATTERN = re.compile(
 EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 URL_PATTERN = re.compile(r"(?:https?://|www\.)\S+", flags=re.IGNORECASE)
 PHONE_PATTERN = re.compile(r"(?<!\d)(?:\+?84|0)(?:[\s.\-]?\d){8,10}(?!\d)")
-MENTION_PATTERN = re.compile(r"@[A-Za-z0-9_.-]+")
+MENTION_PATTERN = re.compile(r"(?<!\w)@[\w.-]+")
+PERSON_NAME_PATTERN = re.compile(
+    r"(\b(?i:chào|bạn|anh|chị|tên (?:mình|em|tôi) là)\s+)"
+    r"(?:Nguyễn|Trần|Lê|Phạm|Hoàng|Huỳnh|Phan|Vũ|Võ|Đặng|Bùi|Đỗ|Hồ|Ngô|Dương)"
+    r"(?:\s+[A-ZÀ-ỸĐ][a-zà-ỹđ]{1,}){1,3}\b"
+)
 ID_NUMBER_PATTERN = re.compile(r"\b\d{9,12}\b")
 ALLOWED_CHAR_PATTERN = re.compile(r"[^\w\s.,?!/:;()\-+%\[\]]", flags=re.UNICODE)
 WHITESPACE_PATTERN = re.compile(r"\s+")
@@ -193,9 +193,6 @@ def detect_spam_or_irrelevant(text: str) -> tuple[bool, str | None]:
         if re.search(rf"\b{re.escape(kw)}\b", lowered):
             return True, f"spam_keyword:{kw}"
 
-    if LABOR_ROUTE_PATTERN.search(lowered) and not STUDY_CONTEXT_PATTERN.search(lowered):
-        return True, "off_topic_labor_route"
-
     url_count = len(URL_PATTERN.findall(lowered))
     has_phone = bool(PHONE_PATTERN.search(lowered))
     recruitment = bool(re.search(r"\b(?:tuyển dụng|chốt đơn|đăng ký ngay)\b", lowered))
@@ -206,11 +203,12 @@ def detect_spam_or_irrelevant(text: str) -> tuple[bool, str | None]:
 
 
 def anonymize_pii(text: str) -> str:
-    """Replace emails, phone numbers, URLs, mentions, and long IDs with placeholders."""
-    masked = EMAIL_PATTERN.sub("[EMAIL]", text)
+    """Mask contact details, identifiers, and names in common forms of address."""
+    masked = EMAIL_PATTERN.sub("[EMAIL]", unicodedata.normalize("NFC", text))
     masked = URL_PATTERN.sub("[URL]", masked)
     masked = PHONE_PATTERN.sub("[PHONE]", masked)
     masked = MENTION_PATTERN.sub("[USER]", masked)
+    masked = PERSON_NAME_PATTERN.sub(r"\1[USER]", masked)
     masked = ID_NUMBER_PATTERN.sub("[ID]", masked)
     return masked
 
@@ -247,7 +245,7 @@ def segment_vietnamese_text(text: str) -> str:
             continue
         tokens.append(tok)
 
-    return " ".join(tokens)
+    return normalize_term_forms(" ".join(tokens))
 
 
 def clean_dataset(
@@ -257,6 +255,8 @@ def clean_dataset(
     """Run the full cleaning pipeline without modifying the raw input file."""
     in_path = Path(input_path)
     out_path = Path(output_path)
+    if in_path.resolve() == out_path.resolve() or (out_path.exists() and in_path.exists() and out_path.samefile(in_path)):
+        raise ValueError("The cleaning output must differ from the raw input file.")
 
     logger.info("Reading raw data from %s", in_path)
     raw_df = read_input_safely(in_path)
@@ -271,12 +271,23 @@ def clean_dataset(
 
     # 1. Drop empty / null text rows
     text_series = df["text"].fillna("").astype(str).str.strip()
+    if "text_anonymized" in df.columns:
+        anonymized = df["text_anonymized"].fillna("").astype(str).str.strip()
+        text_series = text_series.where(text_series.ne(""), anonymized)
     empty_mask = text_series == ""
     record_drop("empty_or_null_text", int(empty_mask.sum()))
     df = df.loc[~empty_mask].copy()
-    df["text"] = df["text"].astype(str).str.strip()
+    df["text"] = text_series.loc[df.index]
 
-    # 2. Drop duplicate texts (case- and whitespace-normalized)
+    # 2. Filter dates before deduplication so an out-of-range copy cannot suppress a valid row.
+    parsed_dates = pd.to_datetime(df["created_at"], errors="coerce", format="mixed")
+    record_drop("invalid_date", int(parsed_dates.isna().sum()))
+    record_drop("before_or_in_jan_2022", int(parsed_dates.lt(MIN_VALID_DATE).sum()))
+    valid_date_mask = parsed_dates.ge(MIN_VALID_DATE)
+    df = df.loc[valid_date_mask].copy()
+    df["created_at"] = parsed_dates.loc[valid_date_mask].dt.strftime("%Y-%m-%d")
+
+    # 3. Drop duplicate texts (case- and whitespace-normalized)
     dedup_key = (
         df["text"]
         .apply(lambda s: unicodedata.normalize("NFC", s).lower())
@@ -286,18 +297,6 @@ def clean_dataset(
     dup_mask = dedup_key.duplicated(keep="first")
     record_drop("duplicate_text", int(dup_mask.sum()))
     df = df.loc[~dup_mask].copy()
-
-    # 3. Filter created_at strictly after January 2022
-    parsed_dates = pd.to_datetime(df["created_at"], errors="coerce", format="mixed")
-    invalid_date_mask = parsed_dates.isna()
-    record_drop("invalid_date", int(invalid_date_mask.sum()))
-
-    out_of_range_mask = (~invalid_date_mask) & (parsed_dates <= MIN_DATE_CUTOFF)
-    record_drop("before_or_in_jan_2022", int(out_of_range_mask.sum()))
-
-    valid_date_mask = (~invalid_date_mask) & (parsed_dates > MIN_DATE_CUTOFF)
-    df = df.loc[valid_date_mask].copy()
-    df["created_at"] = parsed_dates.loc[valid_date_mask].dt.strftime("%Y-%m-%d")
 
     # 4. Filter spam, ads, and irrelevant content
     if in_path.resolve() == PROJECT_WORKBOOK.resolve() and PROJECT_REVIEW_PATH.is_file():

@@ -1,66 +1,118 @@
 {
-  "run_timestamp": "2026-11-21T23:34:11",
+  "run_timestamp": "2026-11-23T23:16:54",
+  "raw_input_sha256": "5f75979a3ad98dca5b830650ae06bb29aab479f936f0f0d1bd3f2277a47bc2d9",
+  "classified_csv_sha256": "28a3d131691bea4a77cd903db4c1dfceeee5e4091c664ee7bc6c673617ae7385",
+  "output_sha256": {
+    "data/processed/cleaned_data.csv": "91bb5ebb25006e63556ef2fd5556b712ad832e1330f8762adeb8f18932900a60",
+    "data/processed/classified_data.csv": "28a3d131691bea4a77cd903db4c1dfceeee5e4091c664ee7bc6c673617ae7385",
+    "data/processed/manual_review_needed.csv": "ae8c10f9e061b090efe18f0b5e72bf08480bd42c6222e90fa195ac84ad52b7ba",
+    "data/processed/relevance_review.csv": "ce35a21f9bc6d9086b014bae9adc976b6877760bd7deaeaaae7c331c1c2d8033",
+    "results/suspected_off_topic.csv": "a2545daa304763bc22b9900f8fb9e940de89d5b31a53b9b85cbbac9f326ed790",
+    "data/exports/orange_data.csv": "604c4d9254252f373c3303230b8f73abbbb31f10eb2171b3f495ea263f8c3f2a",
+    "results/tfidf_results.csv": "4c23893eb57184e0ed5b4ef13cda179c4c8cea3b251033b0f4ab135cbe2ee75f",
+    "results/lda_topics.csv": "35389a70d6520302ad90d92f9ee7d219e720e5d02861d51f2b319123fb2a2c47",
+    "results/lda_doc_topics.csv": "4da6b7e94ce87b5ffed3c8bf93031dc10053f4b5ff725c83df11f089e34e49b9",
+    "results/figures/hinh_01_phan_bo_nhom_phan_loai.png": "9e3f50671355871cbd6b43b49d99c41eba76494b5943c794ba8e95b2023647ab",
+    "results/figures/hinh_02_tfidf_tu_khoa_tong_the.png": "f51216bc13eaf82f5dab552881fe0bce9009f87cf1114a8ee2c728f425817c03",
+    "results/figures/hinh_03_tfidf_nhom_dong_luc_motivation.png": "ce2a7d87445e964109a5e204879e1684a37d21853e5bec7f20a670956758e95c",
+    "results/figures/hinh_04_tfidf_nhom_muc_dich_purpose.png": "74d69ee80e1e3f6ee9009b968879f3ca9ad1433d628d15a07f4f3ecdf0d3204f",
+    "results/figures/hinh_05_tfidf_nhom_chuan_bi_preparation.png": "c746e82d118245aeef6a7857c49c8abbc6dea8292d66376b8e96c439ae433df7",
+    "results/figures/hinh_06_lda_tu_khoa_tung_chu_de.png": "a4608092cf6a4e5912bcbe44bf69c502ff7c93ca660d1627babd1e42ada22fd1",
+    "results/figures/hinh_07_lda_phan_bo_chu_de.png": "bf47af346710da3f385f3fc95920169a761fda3a42b4792bc4bbc922020198bd",
+    "results/figures/hinh_08_lda_chu_de_vs_nhom_phan_loai.png": "15466898c2b6c0f8fb695727bead21bf2e8f4dfd9f1dfa15be70e1c4b46c9e52"
+  },
   "cleaning": {
-    "input_path": "/Users/baotoan/Documents/AI_For_Business/data/raw/DATA_COLLECTION_TEXT_ANALYSIS_STUDY_IN_JAPAN_P2.xlsx",
-    "output_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/cleaned_data.csv",
+    "input_path": "/Users/baotoan/Documents/AI-For-Business/data/raw/DATA_COLLECTION_TEXT_ANALYSIS_STUDY_IN_JAPAN_P2.xlsx",
+    "output_path": "/Users/baotoan/Documents/AI-For-Business/data/processed/cleaned_data.csv",
     "total_raw_records": 1511,
-    "kept_records": 1439,
-    "dropped_records": 72,
+    "kept_records": 1453,
+    "dropped_records": 58,
     "drop_reasons": {
-      "duplicate_text": 1,
       "before_or_in_jan_2022": 26,
+      "duplicate_text": 1,
       "manual_review_exclusion": 28,
       "comment_template_intro": 1,
-      "spam_promotional_links_or_contact": 2,
-      "off_topic_labor_route": 14
+      "spam_promotional_links_or_contact": 2
     }
   },
   "classification": {
-    "input_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/cleaned_data.csv",
-    "output_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/classified_data.csv",
-    "manual_review_output_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/manual_review_needed.csv",
-    "total_classified": 1439,
+    "input_path": "/Users/baotoan/Documents/AI-For-Business/data/processed/cleaned_data.csv",
+    "output_path": "/Users/baotoan/Documents/AI-For-Business/data/processed/classified_data.csv",
+    "manual_review_output_path": "/Users/baotoan/Documents/AI-For-Business/data/processed/manual_review_needed.csv",
+    "total_classified": 1453,
     "category_distribution": {
-      "Motivation": 112,
-      "Purpose": 89,
-      "Preparation": 453,
-      "Other": 785
+      "Motivation": 101,
+      "Purpose": 85,
+      "Preparation": 372,
+      "Other": 895
     },
-    "manual_review_count": 815,
+    "manual_review_count": 1345,
+    "relevance": {
+      "review_output_path": "/Users/baotoan/Documents/AI-For-Business/data/processed/relevance_review.csv",
+      "status_counts": {
+        "relevant": 199,
+        "off_topic": 222,
+        "uncertain": 1032
+      },
+      "analysis_category_distribution": {
+        "Preparation": 100,
+        "Other": 58,
+        "Purpose": 25,
+        "Motivation": 16
+      }
+    },
+    "study_scope_flag_counts": {
+      "labor_without_explicit_study_context": 137,
+      "residence_without_explicit_study_context": 30,
+      "mixed_study_and_labor_or_residence": 24,
+      "possible_work_context": 23
+    },
     "accuracy": null,
     "evaluation_note": "Experimental rule-based classifier; accuracy is not reported because no ground-truth labeled evaluation set is available yet."
   },
   "tfidf": {
-    "input_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/classified_data.csv",
-    "output_path": "/Users/baotoan/Documents/AI_For_Business/results/tfidf_results.csv",
+    "input_path": "/Users/baotoan/Documents/AI-For-Business/data/processed/classified_data.csv",
+    "output_path": "/Users/baotoan/Documents/AI-For-Business/results/tfidf_results.csv",
     "groups_analyzed": [
       "ALL",
       "Motivation",
       "Preparation",
       "Purpose"
     ],
+    "n_candidate_documents": 199,
+    "n_documents": 199,
+    "group_document_counts": {
+      "ALL": 199,
+      "Motivation": 16,
+      "Preparation": 100,
+      "Purpose": 25
+    },
     "total_keywords_exported": 60
   },
   "lda": {
-    "input_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/classified_data.csv",
-    "output_path": "/Users/baotoan/Documents/AI_For_Business/results/lda_topics.csv",
-    "doc_topics_output_path": "/Users/baotoan/Documents/AI_For_Business/results/lda_doc_topics.csv",
-    "n_documents": 654,
-    "n_candidate_documents": 654,
+    "input_path": "/Users/baotoan/Documents/AI-For-Business/data/processed/classified_data.csv",
+    "output_path": "/Users/baotoan/Documents/AI-For-Business/results/lda_topics.csv",
+    "doc_topics_output_path": "/Users/baotoan/Documents/AI-For-Business/results/lda_doc_topics.csv",
+    "n_documents": 199,
+    "n_candidate_documents": 199,
     "excluded_no_tokens": 0,
     "excluded_no_retained_terms": 0,
     "min_document_frequency": 2,
-    "vocab_size": 964,
-    "n_topics": 3,
-    "perplexity": 563.9747,
-    "log_likelihood": -51123.5258,
-    "interpretability_note": "Corpus size (654 docs, 964 terms) is suitable for exploratory topic inspection across 3 topics.",
+    "vocab_size": 390,
+    "n_topics": 4,
+    "random_state": 42,
+    "max_iter": 30,
+    "doc_topic_prior": 0.3333333333333333,
+    "topic_word_prior": 0.3333333333333333,
+    "perplexity": 270.9642,
+    "log_likelihood": -14800.4493,
+    "interpretability_note": "Corpus size (199 docs, 390 terms) is suitable for exploratory topic inspection across 4 topics.",
     "mapping_disclaimer": "LDA topics (Topic_0, Topic_1, ...) are unsupervised statistical clusters and are NOT automatically equated with Motivation, Purpose, or Preparation."
   },
   "orange_export": {
-    "input_path": "/Users/baotoan/Documents/AI_For_Business/data/processed/classified_data.csv",
-    "output_path": "/Users/baotoan/Documents/AI_For_Business/data/exports/orange_data.csv",
-    "exported_rows": 1439,
+    "input_path": "/Users/baotoan/Documents/AI-For-Business/data/processed/classified_data.csv",
+    "output_path": "/Users/baotoan/Documents/AI-For-Business/data/exports/orange_data.csv",
+    "exported_rows": 1453,
     "columns": [
       "text_id",
       "text_cleaned",
@@ -69,19 +121,20 @@
       "created_at",
       "needs_manual_review",
       "text_model"
-    ]
+    ],
+    "word_cloud_text_feature": "text_model"
   },
   "figures": {
-    "figure_dir": "/Users/baotoan/Documents/AI_For_Business/results/figures",
+    "figure_dir": "/Users/baotoan/Documents/AI-For-Business/results/figures",
     "figures": [
-      "/Users/baotoan/Documents/AI_For_Business/results/figures/hinh_01_phan_bo_nhom_phan_loai.png",
-      "/Users/baotoan/Documents/AI_For_Business/results/figures/hinh_02_tfidf_tu_khoa_tong_the.png",
-      "/Users/baotoan/Documents/AI_For_Business/results/figures/hinh_03_tfidf_nhom_dong_luc_motivation.png",
-      "/Users/baotoan/Documents/AI_For_Business/results/figures/hinh_04_tfidf_nhom_muc_dich_purpose.png",
-      "/Users/baotoan/Documents/AI_For_Business/results/figures/hinh_05_tfidf_nhom_chuan_bi_preparation.png",
-      "/Users/baotoan/Documents/AI_For_Business/results/figures/hinh_06_lda_tu_khoa_tung_chu_de.png",
-      "/Users/baotoan/Documents/AI_For_Business/results/figures/hinh_07_lda_phan_bo_chu_de.png",
-      "/Users/baotoan/Documents/AI_For_Business/results/figures/hinh_08_lda_chu_de_vs_nhom_phan_loai.png"
+      "/Users/baotoan/Documents/AI-For-Business/results/figures/hinh_01_phan_bo_nhom_phan_loai.png",
+      "/Users/baotoan/Documents/AI-For-Business/results/figures/hinh_02_tfidf_tu_khoa_tong_the.png",
+      "/Users/baotoan/Documents/AI-For-Business/results/figures/hinh_03_tfidf_nhom_dong_luc_motivation.png",
+      "/Users/baotoan/Documents/AI-For-Business/results/figures/hinh_04_tfidf_nhom_muc_dich_purpose.png",
+      "/Users/baotoan/Documents/AI-For-Business/results/figures/hinh_05_tfidf_nhom_chuan_bi_preparation.png",
+      "/Users/baotoan/Documents/AI-For-Business/results/figures/hinh_06_lda_tu_khoa_tung_chu_de.png",
+      "/Users/baotoan/Documents/AI-For-Business/results/figures/hinh_07_lda_phan_bo_chu_de.png",
+      "/Users/baotoan/Documents/AI-For-Business/results/figures/hinh_08_lda_chu_de_vs_nhom_phan_loai.png"
     ]
   }
 }

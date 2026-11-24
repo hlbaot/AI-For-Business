@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from matplotlib.ticker import FuncFormatter, PercentFormatter  # noqa: E402
+from src.relevance import select_analysis_documents  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +101,7 @@ def plot_tfidf(tfidf_path: Path, fig_dir: Path) -> list[str]:
             all_df["keyword"].tolist(),
             all_df["tfidf_score"].tolist(),
             CATEGORY_COLORS["ALL"],
-            f"Hình 2. Từ khóa TF-IDF của ba nhóm (n={int(all_df['group_doc_count'].iloc[0])})",
+            f"Hình 2. Từ khóa TF-IDF của tập du học (n={int(all_df['group_doc_count'].iloc[0])})",
             "Điểm TF-IDF trung bình",
         )
         saved.append(_save(fig, fig_dir / "hinh_02_tfidf_tu_khoa_tong_the.png"))
@@ -175,7 +176,8 @@ def plot_lda(topics_path: Path, doc_topics_path: Path, fig_dir: Path) -> list[st
     # 3. Heatmap: LDA topic vs rule-based category
     if "rule_category" in docs.columns:
         ct = pd.crosstab(docs["rule_category"], docs["dominant_topic"])
-        ct = ct.reindex(index=[c for c in CATEGORY_ORDER if c in ct.index], columns=topic_labels, fill_value=0)
+        order = [*CATEGORY_ORDER, "Other"]
+        ct = ct.reindex(index=[c for c in order if c in ct.index], columns=topic_labels, fill_value=0)
         group_sizes = ct.sum(axis=1)
         pct = ct.div(group_sizes.replace(0, 1), axis=0)
         fig, ax = plt.subplots(figsize=(1.8 * n + 3, 4.5))
@@ -201,6 +203,25 @@ def plot_lda(topics_path: Path, doc_topics_path: Path, fig_dir: Path) -> list[st
     return saved
 
 
+def plot_lda_comparison(scores: pd.DataFrame, path: Path) -> str:
+    """Plot the three K comparison metrics in separate panels."""
+    fig, axes = plt.subplots(1, 3, figsize=(13, 4.1))
+    metrics = (
+        ("coherence", r"Coherence $C_v$", "Cao hơn tốt hơn"),
+        ("topic_diversity", "Đa dạng từ khóa", "Cao hơn tốt hơn"),
+        ("perplexity", "Perplexity huấn luyện", "Thấp hơn tốt hơn"),
+    )
+    for ax, (column, title, direction) in zip(axes, metrics):
+        ax.plot(scores["k"], scores[column], marker="o", color="#4C72B0")
+        ax.set_xticks(scores["k"])
+        ax.set_xlabel("Số chủ đề K")
+        ax.set_title(title)
+        ax.set_ylabel(direction)
+        ax.grid(axis="y", alpha=0.25)
+    fig.suptitle("So sánh LDA trên cùng tập văn bản", fontweight="bold")
+    return _save(fig, path)
+
+
 # ---------------------------------------------------------------- Categories
 def plot_category_distribution(classified_path: Path, fig_dir: Path) -> list[str]:
     if not classified_path.exists():
@@ -208,7 +229,8 @@ def plot_category_distribution(classified_path: Path, fig_dir: Path) -> list[str
     df = pd.read_csv(classified_path, encoding="utf-8-sig")
     if "category" not in df.columns:
         return []
-    counts = df["category"].value_counts().reindex(CATEGORY_ORDER, fill_value=0)
+    relevant = select_analysis_documents(df)
+    counts = relevant["category"].value_counts().reindex([*CATEGORY_ORDER, "Other"], fill_value=0)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
     colors = [CATEGORY_COLORS[c] for c in counts.index]
     bars = ax1.bar(counts.index, counts.values, color=colors)
@@ -220,7 +242,7 @@ def plot_category_distribution(classified_path: Path, fig_dir: Path) -> list[str
     ax2.pie(counts.values, labels=counts.index, colors=colors, autopct=lambda value: _percent(value / 100), startangle=90,
             wedgeprops={"edgecolor": "white"})
     ax2.set_title("Tỷ lệ theo nhóm", fontweight="bold")
-    fig.suptitle(f"Hình 1. Phân bố nhóm phân loại theo luật (n={counts.sum()})", fontsize=14, fontweight="bold")
+    fig.suptitle(f"Hình 1. Phân bố nhãn trong tập du học (n={counts.sum()})", fontsize=14, fontweight="bold")
     return [_save(fig, fig_dir / "hinh_01_phan_bo_nhom_phan_loai.png")]
 
 

@@ -36,6 +36,8 @@ TERM_FORMS = {
     "lương_cao": ("lương cao",),
     "làm_thêm": ("làm thêm", "baito"),
     "làm_việc": ("làm việc",),
+    "việc_làm": ("việc làm",),
+    "chi_phí": ("chi phí",),
     "tốt_nghiệp": ("tốt nghiệp",),
     "xuất_khẩu_lao_động": ("xuất khẩu lao động", "xklđ", "xkld"),
     "thực_tập_sinh": ("thực tập sinh", "tts"),
@@ -54,12 +56,23 @@ _TERM_PATTERN = re.compile(
     + r")(?![^\W_])"
 )
 _WORD_PATTERN = re.compile(r"\w+", re.UNICODE)
+_EXAM_CODE = re.compile(r"(?<![^\W_])(jlpt|eju|n[1-5])(?![^\W_])")
 _FILLER_PARTS = frozenset(
     "ơi ạ nha nhé nhe nhéee á nè nhỉ ơii ơiii ạaa ko hok k kh hong hông khum dc đc".split()
 )
 _PLACEHOLDER = re.compile(r"\[(?:EMAIL|URL|PHONE|USER|ID)\]", re.IGNORECASE)
 EMOJI_SHORTCODE = re.compile(r":[a-z0-9]+(?:[-_][a-z0-9]+)+:", re.IGNORECASE)
 _NOISE = re.compile(r"(?:(?:ha|he|hi){2,}|[kh]+|ạ+|ơ+i+|\d+(?:tr|k|kg|man)?)")
+
+
+def normalize_term_forms(text: str) -> str:
+    """Unify selected Vietnamese compounds and unambiguous domain abbreviations."""
+    normalized = _TERM_PATTERN.sub(
+        lambda match: _FORM_TO_TERM[re.sub(r"[ _]+", "_", match.group())], text
+    )
+    # Underthesea can group adjacent codes as jlpt_n2_n3.
+    parts = _EXAM_CODE.sub(r" \1 ", normalized).split()
+    return " ".join(token for part in parts if (token := part.strip("_")))
 
 
 def vietnamese_segmented_tokenizer(text: str) -> list[str]:
@@ -69,9 +82,7 @@ def vietnamese_segmented_tokenizer(text: str) -> list[str]:
 
     normalized = unicodedata.normalize("NFC", text).lower()
     normalized = EMOJI_SHORTCODE.sub(" ", _PLACEHOLDER.sub(" ", normalized))
-    normalized = _TERM_PATTERN.sub(
-        lambda match: _FORM_TO_TERM[re.sub(r"[ _]+", "_", match.group())], normalized
-    )
+    normalized = normalize_term_forms(normalized)
     tokens: list[str] = []
     for raw_token in _WORD_PATTERN.findall(normalized):
         token = "_".join(

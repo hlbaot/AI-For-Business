@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+from src.relevance import select_analysis_documents
 from src.text_features import vietnamese_segmented_tokenizer
 
 logger = logging.getLogger(__name__)
@@ -21,12 +22,12 @@ DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "results" / "tfidf_results.csv"
 TARGET_CATEGORIES: tuple[str, ...] = ("Motivation", "Purpose", "Preparation")
 
 
-def _extract_top_terms(texts: list[str], group_name: str, top_n: int) -> list[dict[str, Any]]:
+def _extract_top_terms(texts: list[str], group_name: str, top_n: int) -> tuple[list[dict[str, Any]], int]:
     """Compute mean TF-IDF scores and return the top N terms for a text group."""
     model_texts = [" ".join(vietnamese_segmented_tokenizer(text)) for text in texts]
     non_empty = [text for text in model_texts if text]
     if not non_empty:
-        return []
+        return [], 0
 
     vectorizer = TfidfVectorizer(analyzer=str.split)
     matrix = vectorizer.fit_transform(non_empty)
@@ -48,7 +49,7 @@ def _extract_top_terms(texts: list[str], group_name: str, top_n: int) -> list[di
                 "group_doc_count": len(non_empty),
             }
         )
-    return rows
+    return rows, len(non_empty)
 
 
 def run_tfidf_analysis(
@@ -67,19 +68,19 @@ def run_tfidf_analysis(
     if df.empty or "text_segmented" not in df.columns:
         raise ValueError("Input DataFrame must be non-empty and contain 'text_segmented'.")
 
-    # Only the 3 target groups are analysed; "ALL" = Motivation + Purpose + Preparation combined.
-    if "category" in df.columns:
-        df = df[df["category"].isin(TARGET_CATEGORIES)].reset_index(drop=True)
-        if df.empty:
-            raise ValueError("No documents in Motivation/Purpose/Preparation for TF-IDF.")
+    df = select_analysis_documents(df)
+    if df.empty:
+        raise ValueError("No relevant documents for TF-IDF.")
 
-    all_rows = _extract_top_terms(df["text_segmented"].fillna("").tolist(), "ALL", top_n)
+    all_rows, n_documents = _extract_top_terms(df["text_segmented"].tolist(), "ALL", top_n)
 
     groups_analyzed = ["ALL"]
+    document_counts = {"ALL": n_documents}
     if "category" in df.columns:
-        for category in sorted(df["category"].dropna().unique()):
+        for category in sorted(TARGET_CATEGORIES):
             subset = df.loc[df["category"] == category, "text_segmented"].fillna("").tolist()
-            cat_rows = _extract_top_terms(subset, str(category), top_n)
+            cat_rows, count = _extract_top_terms(subset, str(category), top_n)
+            document_counts[str(category)] = count
             if cat_rows:
                 all_rows.extend(cat_rows)
                 groups_analyzed.append(str(category))
@@ -94,6 +95,9 @@ def run_tfidf_analysis(
         "input_path": str(in_path),
         "output_path": str(out_path),
         "groups_analyzed": groups_analyzed,
+        "n_candidate_documents": len(df),
+        "n_documents": n_documents,
+        "group_document_counts": document_counts,
         "total_keywords_exported": len(result_df),
     }
     logger.info(

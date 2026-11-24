@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import sys
@@ -14,7 +15,7 @@ import pandas as pd
 
 from src.classification import classify_dataset
 from src.cleaning import clean_dataset
-from src.lda import run_lda_analysis
+from src.lda import DEFAULT_N_TOPICS, run_lda_analysis
 from src.text_features import vietnamese_segmented_tokenizer
 from src.tfidf import run_tfidf_analysis
 from src.visualize import generate_all_figures
@@ -24,6 +25,8 @@ DEFAULT_RAW_PATH = PROJECT_ROOT / "data" / "raw" / "raw_data.csv"
 DEFAULT_CLEANED_PATH = PROJECT_ROOT / "data" / "processed" / "cleaned_data.csv"
 DEFAULT_CLASSIFIED_PATH = PROJECT_ROOT / "data" / "processed" / "classified_data.csv"
 DEFAULT_REVIEW_PATH = PROJECT_ROOT / "data" / "processed" / "manual_review_needed.csv"
+DEFAULT_RELEVANCE_REVIEW_PATH = PROJECT_ROOT / "data" / "processed" / "relevance_review.csv"
+DEFAULT_SCOPE_REVIEW_PATH = PROJECT_ROOT / "results" / "suspected_off_topic.csv"
 DEFAULT_ORANGE_PATH = PROJECT_ROOT / "data" / "exports" / "orange_data.csv"
 DEFAULT_TFIDF_PATH = PROJECT_ROOT / "results" / "tfidf_results.csv"
 DEFAULT_LDA_TOPICS_PATH = PROJECT_ROOT / "results" / "lda_topics.csv"
@@ -87,6 +90,7 @@ def export_for_orange(
         "output_path": str(out_path),
         "exported_rows": len(orange_df),
         "columns": list(orange_df.columns),
+        "word_cloud_text_feature": "text_model",
     }
     logging.getLogger(__name__).info(
         "Orange export complete: %d rows written to %s", len(orange_df), out_path
@@ -133,8 +137,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--n-topics",
         type=int,
-        default=3,
-        help="Number of LDA topics (default: 3).",
+        default=DEFAULT_N_TOPICS,
+        help=f"Number of LDA topics (default: {DEFAULT_N_TOPICS}).",
     )
     parser.add_argument(
         "--top-n",
@@ -176,20 +180,23 @@ def main() -> int:
             return 0
 
         input_path = resolve_input_path(args.input)
-        logger.info("=== Step 1/5: Data Cleaning ===")
+        raw_hash = hashlib.sha256(input_path.read_bytes()).hexdigest()
+        logger.info("=== Step 1/6: Data Cleaning ===")
         _, cleaning_stats = clean_dataset(input_path, DEFAULT_CLEANED_PATH)
 
-        logger.info("=== Step 2/5: Rule-Based Classification ===")
+        logger.info("=== Step 2/6: Rule-Based Classification and Relevance ===")
         _, classification_stats = classify_dataset(
-            DEFAULT_CLEANED_PATH, DEFAULT_CLASSIFIED_PATH, DEFAULT_REVIEW_PATH
+            DEFAULT_CLEANED_PATH, DEFAULT_CLASSIFIED_PATH, DEFAULT_REVIEW_PATH,
+            scope_review_path=DEFAULT_SCOPE_REVIEW_PATH,
+            relevance_review_path=DEFAULT_RELEVANCE_REVIEW_PATH,
         )
 
-        logger.info("=== Step 3/5: TF-IDF Keyword Analysis ===")
+        logger.info("=== Step 3/6: TF-IDF Keyword Analysis ===")
         _, tfidf_stats = run_tfidf_analysis(
             DEFAULT_CLASSIFIED_PATH, DEFAULT_TFIDF_PATH, top_n=args.top_n
         )
 
-        logger.info("=== Step 4/5: LDA Topic Modeling ===")
+        logger.info("=== Step 4/6: LDA Topic Modeling ===")
         _, lda_stats = run_lda_analysis(
             DEFAULT_CLASSIFIED_PATH,
             DEFAULT_LDA_TOPICS_PATH,
@@ -197,14 +204,30 @@ def main() -> int:
             n_topics=args.n_topics,
         )
 
-        logger.info("=== Step 5/5: Orange Data Mining Export ===")
+        logger.info("=== Step 5/6: Orange Data Mining Export ===")
         _, orange_stats = export_for_orange(DEFAULT_CLASSIFIED_PATH, DEFAULT_ORANGE_PATH)
 
         logger.info("=== Step 6/6: Visualization (TF-IDF & LDA charts) ===")
         figure_stats = generate_all_figures()
 
+        if hashlib.sha256(input_path.read_bytes()).hexdigest() != raw_hash:
+            raise ValueError("The raw input changed during processing. Run the pipeline again.")
+
+        outputs = (
+            DEFAULT_CLEANED_PATH, DEFAULT_CLASSIFIED_PATH, DEFAULT_REVIEW_PATH, DEFAULT_RELEVANCE_REVIEW_PATH,
+            DEFAULT_SCOPE_REVIEW_PATH, DEFAULT_ORANGE_PATH, DEFAULT_TFIDF_PATH,
+            DEFAULT_LDA_TOPICS_PATH, DEFAULT_LDA_DOC_TOPICS_PATH,
+            *(Path(path) for path in figure_stats["figures"]),
+        )
+
         metrics = {
             "run_timestamp": datetime.now().isoformat(timespec="seconds"),
+            "raw_input_sha256": raw_hash,
+            "classified_csv_sha256": hashlib.sha256(DEFAULT_CLASSIFIED_PATH.read_bytes()).hexdigest(),
+            "output_sha256": {
+                path.relative_to(PROJECT_ROOT).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+                for path in outputs
+            },
             "cleaning": cleaning_stats,
             "classification": classification_stats,
             "tfidf": tfidf_stats,
