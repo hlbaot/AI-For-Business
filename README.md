@@ -57,6 +57,8 @@ PY
 
 Mở [CSV Orange](results/study_japan/orange_data.csv) và chọn `text_model` làm cột văn bản trong **Corpus**. Trong **Preprocess Text**, dùng Regexp `\w+` để giữ từ ghép có dấu gạch dưới, sau đó nối với **Word Cloud**. Dùng cột `category` để xem từng nhãn.
 
+Xuất bốn ảnh từ Orange cho báo cáo gồm Động lực (`Motivation`, 20 bình luận), Mục đích (`Purpose`, 23), Chuẩn bị (`Preparation`, 168) và Tổng quan (270, dùng toàn bộ CSV).
+
 ## 4. Kết quả phân tích
 
 ### 4.1. Phân bố nhãn
