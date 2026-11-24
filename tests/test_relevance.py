@@ -72,3 +72,28 @@ class RelevanceTests(unittest.TestCase):
         self.assertEqual(select_analysis_documents(data)["text_id"].tolist(), ["a"])
         legacy = data.drop(columns="relevance_status")
         self.assertEqual(select_analysis_documents(legacy)["text_id"].tolist(), ["a"])
+
+    def test_unaccented_study_route_and_comparison(self):
+        for text in (
+            "Mình định sang du hoc tiếng hai năm rồi chuyển shyuu, liệu có phải học lên senmon không?",
+            "Phân vân học đại học ở Việt Nam hay đi Du học Nhât Bản.",
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(assess_relevance(text).status, "relevant")
+
+    def test_source_requires_matching_comment_detail(self):
+        title = "Chứng minh tài chính du học Nhật Bản"
+        self.assertEqual(assess_relevance("Mình cần xác minh tài chính để đi du học", title).status, "relevant")
+        self.assertEqual(assess_relevance("Thông tin bổ ích quá, cảm ơn bạn", title).status, "uncertain")
+        self.assertEqual(assess_relevance("Cần giấy tờ gì để chuyển công ty?", title).status, "off_topic")
+        self.assertEqual(assess_relevance("Nên đi du học hay theo diện kỹ sư?", title).status, "uncertain")
+        self.assertEqual(assess_relevance("Gia hạn visa có cần bằng gốc không?", "Gia hạn visa kỹ sư ở Nhật").status, "off_topic")
+        self.assertEqual(assess_relevance("Vợ đi nộp hộ chiếu cho chồng được không?", "Gia hạn visa gia đình ở Nhật").status, "off_topic")
+        self.assertEqual(assess_relevance("Em cao 1m47, chị đi trung tâm nào vậy?", title).status, "uncertain")
+        self.assertEqual(assess_relevance("Tìm hiểu thêm các chương trình học tiếng Nhật tại:", title).status, "uncertain")
+
+    def test_classifier_accepts_source_in_cleaned_data(self):
+        rows = pd.DataFrame({"text_cleaned": ["Mình cần xác minh tài chính để đi du học"],
+                             "source_name": ["Chứng minh tài chính du học Nhật Bản"]})
+        result = RuleBasedClassifier().predict_dataframe(rows)
+        self.assertEqual(result.loc[0, "relevance_reason"], "study_detail_supported_by_source")

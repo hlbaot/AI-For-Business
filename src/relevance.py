@@ -28,6 +28,7 @@ APPLICATION = re.compile(
 )
 SPECIFIC_STUDY = re.compile(
     r"\b(?:visa (?:diện )?(?:du học|sinh viên|học sinh)|"
+    r"du học (?:(?:ở|tại|bên) )?nhật(?: bản)?|"
     r"(?:sang nhật|ở nhật|tại nhật) (?:để )?học (?:đại học|thạc sĩ|cao học|trường tiếng)|"
     r"học (?:đại học|thạc sĩ|cao học|nghiên cứu sinh) (?:ở|tại|bên) nhật|"
     r"(?:qua|sang) nhật (?:để )?học tiếng(?: nhật)?|học tiếng nhật[^.!?]{0,25}để du học|"
@@ -52,6 +53,10 @@ POST_STUDY = re.compile(
     r"\b(?:sau khi (?:tốt nghiệp|ra trường|học xong|học trường tiếng)|"
     r"(?:tốt nghiệp|ra trường)[^.!?]{0,35}(?:rồi|xong)[^.!?]{0,35}(?:xin việc|đi làm|làm việc|chuyển)|"
     r"học xong[^.!?]{0,45}(?:xin việc|đi làm|làm việc|chuyển))\b"
+)
+LANGUAGE_SCHOOL_TO_WORK = re.compile(
+    r"\b(?:du học tiếng|học (?:trường tiếng|senmon))[^.!?]{0,45}"
+    r"(?:xong|rồi|sau đó)[^.!?]{0,30}(?:chuyển |xin việc|đi làm|làm việc)"
 )
 ALTERNATE_WORK_ROUTE = re.compile(
     r"\b(?:hay đi làm|hoặc đi làm|đi làm luôn|sang làm luôn|trực tiếp đi làm|bỏ học để đi làm|"
@@ -92,6 +97,32 @@ OTHER_STUDY_DESTINATION = re.compile(
     r"\b(?:du học|đi học|học (?:ở|tại|bên)) (?:hàn quốc|hàn|đài loan|trung quốc|úc|mỹ|anh quốc|canada)\b"
 )
 
+STUDY_SOURCE = re.compile(
+    r"\b(?:du học(?: sinh)?|dhs|eju|mext|jasso|apu|senmon|trường nhật ngữ|"
+    r"(?:vào|đỗ vào|học) đại học[^.!?]{0,18}(?:ở|tại|bên) nhật)\b"
+)
+ACADEMIC_DETAIL = re.compile(
+    r"\b(?:chứng minh tài chính|xác minh tài chính|học phí|học bổng|nhập học|tuyển sinh|"
+    r"chọn trường|chọn ngành|trường nào|ngành nào|học ngành|bậc học|học lên|học tiếp|"
+    r"nộp (?:đơn|hồ sơ)|xin coe|research proposal|đề cương nghiên cứu|đề cương học tập|"
+    r"đại sứ quán|điểm (?:chuẩn|đầu vào)|định sang học|chương trình học)\b"
+)
+CENTER_DETAIL = re.compile(r"\b(?:trung tâm nào|trung tâm nào đó)\b")
+CENTER_STUDY_CUE = re.compile(r"\b(?:học ở|học tại|đăng ký học|đăng kí học|học tiếng|chi phí)\b")
+STUDY_COST_SOURCE = re.compile(r"\b(?:chi phí|hết bao nhiêu tiền|cần bao nhiêu để đi học)\b")
+STUDY_COST_DETAIL = re.compile(r"\b(?:chi phí|tiền nhà|sinh hoạt phí|tiền học|vay tiền)\b")
+DEPENDENT_PATH = re.compile(r"\b(?:đi )?theo (?:cha mẹ|bố mẹ|ba mẹ|gia đình|chồng|vợ)\b")
+PROMOTIONAL_POINTER = re.compile(r"\b(?:tìm hiểu thêm|xem thêm|tham khảo thêm)[^.!?]{0,100}\btại\s*:\s*(?:\[url\])?$")
+STUDENT_VISA_SOURCE = re.compile(
+    r"\b(?:visa|coe|thị thực|tư cách lưu trú)[^.!?]{0,22}(?:du học|du học sinh|sinh viên)\b"
+)
+VISA_DETAIL = re.compile(r"\b(?:giấy tờ|hồ sơ|hộ chiếu|thẻ visa|thẻ ngoại kiều|gia hạn|đơn xin|nộp|nhận visa|coe)\b")
+FAMILY_VISA_DETAIL = re.compile(r"\b(?:vợ|chồng|gia đình|thăm thân|phụ thuộc)\b")
+WORK_SOURCE_DETAIL = re.compile(
+    r"\b(?:lương|thu nhập|tăng ca|hợp đồng|đơn hàng|tuyển dụng|tuyển người|phỏng vấn|"
+    r"môi giới|chuyển công ty|chuyển việc|xin việc|làm việc|giấy thuế)\b"
+)
+
 
 @dataclass(frozen=True)
 class RelevanceDecision:
@@ -103,9 +134,16 @@ class RelevanceDecision:
         return "pending_manual_review" if self.status == "uncertain" else "rule_based_not_human_reviewed"
 
 
-def assess_relevance(text: str) -> RelevanceDecision:
-    """Require evidence of a study pathway, or a clear alternate scope."""
-    text = normalize_term_forms(unicodedata.normalize("NFC", text).lower()).replace("_", " ")
+def _scope_text(text: str) -> str:
+    text = unicodedata.normalize("NFC", text).lower()
+    text = re.sub(r"\bdu hoc\b", "du học", text)
+    text = re.sub(r"\bnhât\b", "nhật", text)
+    return normalize_term_forms(text).replace("_", " ")
+
+
+def assess_relevance(text: str, source_name: str = "") -> RelevanceDecision:
+    """Use the source only when the comment contains compatible evidence."""
+    text = _scope_text(text)
     study_ref = STUDY_REFERENCE.search(text)
     action = ACADEMIC_ACTION.search(text)
     academic = APPLICATION.search(text)
@@ -131,7 +169,10 @@ def assess_relevance(text: str) -> RelevanceDecision:
     main_scope_conflict = labor_route or residence
 
     if main_scope_conflict:
-        if (strong_study or contextual_study) and POST_STUDY.search(text) and not alternate and not residence:
+        ordered_path = LANGUAGE_SCHOOL_TO_WORK.search(text) or (
+            (strong_study or contextual_study) and POST_STUDY.search(text)
+        )
+        if ordered_path and not alternate and not residence:
             return RelevanceDecision("relevant", "study_path_before_employment")
         if strong_study or study_ref:
             return RelevanceDecision("uncertain", "study_and_labor_or_residence")
@@ -155,6 +196,28 @@ def assess_relevance(text: str) -> RelevanceDecision:
         return RelevanceDecision("off_topic", f"pay_and_employment_only: {salary.group()} + {employer.group()}")
     if MEDIA_PRODUCTION.search(text) and MEDIA_CHANNEL.search(text):
         return RelevanceDecision("off_topic", "video_production_without_study")
+    if source_name:
+        source = _scope_text(re.sub(r"#\w+", " ", source_name))
+        source_has_study = STUDY_SOURCE.search(source)
+        source_study = source_has_study and (JAPAN.search(source) or JP_EXAM_FUND.search(source))
+        source_labor = bool(LABOR_ACTIVITY.search(source) or LABOR_ROLE.search(source))
+        source_residence = bool(NON_STUDENT_RESIDENCE.search(source))
+        if source_study and not (
+            source_labor or source_residence or OTHER_STUDY_DESTINATION.search(source)
+            or DEPENDENT_PATH.search(text) or PROMOTIONAL_POINTER.search(text)
+        ):
+            specific_study_detail = ACADEMIC_DETAIL.search(text) or (
+                CENTER_DETAIL.search(text) and CENTER_STUDY_CUE.search(text)
+            ) or (STUDY_COST_SOURCE.search(source) and STUDY_COST_DETAIL.search(text))
+            if specific_study_detail or (STUDENT_VISA_SOURCE.search(source) and VISA_DETAIL.search(text)):
+                return RelevanceDecision("relevant", "study_detail_supported_by_source")
+        if not (study_ref or academic or ACADEMIC_DETAIL.search(text)):
+            if source_residence and FAMILY_VISA_DETAIL.search(text) and VISA_DETAIL.search(text):
+                return RelevanceDecision("off_topic", "family_residence_confirmed_by_source")
+            if source_labor and not source_has_study and (
+                WORK_SOURCE_DETAIL.search(text) or (LABOR_ROLE.search(source) and VISA_DETAIL.search(text))
+            ):
+                return RelevanceDecision("off_topic", "labor_detail_supported_by_source")
     if GENERAL_RESIDENCE.search(text):
         return RelevanceDecision("uncertain", "residence_type_unspecified")
     return RelevanceDecision("uncertain", "insufficient_study_context")
@@ -169,5 +232,9 @@ def select_analysis_documents(documents: pd.DataFrame) -> pd.DataFrame:
     else:
         # Previously exported CSVs do not have the scope columns.
         field = "text_cleaned" if "text_cleaned" in documents else "text_segmented"
-        statuses = documents[field].fillna("").map(lambda text: assess_relevance(str(text)).status)
+        sources = documents["source_name"].fillna("") if "source_name" in documents else [""] * len(documents)
+        statuses = pd.Series(
+            [assess_relevance(str(text), str(source)).status for text, source in zip(documents[field].fillna(""), sources)],
+            index=documents.index,
+        )
     return documents.loc[statuses.eq("relevant")].reset_index(drop=True)

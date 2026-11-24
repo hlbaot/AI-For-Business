@@ -186,15 +186,19 @@ class BaseTextClassifier(ABC):
     def predict_one(self, text_cleaned: str, text_segmented: str = "") -> ClassificationResult:
         """Classify a single document."""
 
+    def _predict_with_source(self, cleaned: str, segmented: str, source_name: str) -> ClassificationResult:
+        return self.predict_one(cleaned, segmented)
+
     def predict_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Classify all rows in a cleaned DataFrame."""
         if "text_cleaned" not in df.columns:
             raise ValueError("Input DataFrame must contain 'text_cleaned' column.")
 
         seg_col = df["text_segmented"] if "text_segmented" in df.columns else pd.Series([""] * len(df))
+        sources = df["source_name"].fillna("") if "source_name" in df.columns else [""] * len(df)
         results = [
-            self.predict_one(str(cleaned), str(seg))
-            for cleaned, seg in zip(df["text_cleaned"].fillna(""), seg_col.fillna(""))
+            self._predict_with_source(str(cleaned), str(seg), str(source))
+            for cleaned, seg, source in zip(df["text_cleaned"].fillna(""), seg_col.fillna(""), sources)
         ]
 
         out = df.copy()
@@ -207,8 +211,8 @@ class BaseTextClassifier(ABC):
         out["study_scope_flag"] = [r.study_scope_flag for r in results]
         out["study_scope_signals"] = [r.study_scope_signals for r in results]
         decisions = [
-            result.relevance or assess_relevance(str(text))
-            for result, text in zip(results, df["text_cleaned"].fillna(""))
+            result.relevance or assess_relevance(str(text), str(source))
+            for result, text, source in zip(results, df["text_cleaned"].fillna(""), sources)
         ]
         out["relevance_status"] = [decision.status for decision in decisions]
         out["relevance_reason"] = [decision.reason for decision in decisions]
@@ -247,7 +251,12 @@ class RuleBasedClassifier(BaseTextClassifier):
 
         return scores, matched
 
-    def predict_one(self, text_cleaned: str, text_segmented: str = "") -> ClassificationResult:
+    def _predict_with_source(self, cleaned: str, segmented: str, source_name: str) -> ClassificationResult:
+        return self.predict_one(cleaned, segmented, source_name=source_name)
+
+    def predict_one(
+        self, text_cleaned: str, text_segmented: str = "", *, source_name: str = "",
+    ) -> ClassificationResult:
         scores, matched = self._score_text(text_cleaned, text_segmented)
         ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
         top_cat, top_score = ranked[0]
@@ -255,7 +264,7 @@ class RuleBasedClassifier(BaseTextClassifier):
 
         score_summary = ", ".join(f"{cat}={sc}" for cat, sc in ranked)
         scope_flag, scope_signals = assess_study_scope(text_cleaned)
-        relevance = assess_relevance(text_cleaned)
+        relevance = assess_relevance(text_cleaned, source_name)
         scope_fields = dict(study_scope_flag=scope_flag, study_scope_signals=scope_signals, relevance=relevance)
         if relevance.status == "off_topic":
             return ClassificationResult(
@@ -370,9 +379,10 @@ def classify_dataset(
         scope_review.to_csv(scope_path, index=False, encoding="utf-8-sig")
 
     if relevance_review_path is not None:
-        relevance_review = classified_df[[
-            "text_id", "text_cleaned", "category", "relevance_status", "relevance_reason",
-        ]].copy()
+        review_columns = ["text_id", "text_cleaned", "category", "relevance_status", "relevance_reason"]
+        if "source_name" in classified_df.columns:
+            review_columns.append("source_name")
+        relevance_review = classified_df[review_columns].copy()
         relevance_review["manual_review_status"] = [
             RelevanceDecision(status, "").manual_review_status for status in relevance_review["relevance_status"]
         ]

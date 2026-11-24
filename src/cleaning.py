@@ -339,8 +339,7 @@ def clean_dataset(
         df = df.drop(columns=pii_cols)
 
     keep_cols = ["text_id", "created_at", "text_cleaned", "text_segmented"]
-    if "source" in df.columns:
-        keep_cols.append("source")
+    keep_cols.extend(column for column in ("source", "source_name") if column in df.columns)
     df_out = df[keep_cols].reset_index(drop=True)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
